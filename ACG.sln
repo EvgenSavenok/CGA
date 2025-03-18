@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACG.Core", "ACG.Core\ACG.Core.csproj", "{DD30FCC8-DF70-489E-8BC5-9C81E64B4316}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACG", "ACG\ACG.csproj", "{38DD6F04-1C07-460F-B2DD-331A0E5EB8DB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD30FCC8-DF70-489E-8BC5-9C81E64B4316}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD30FCC8-DF70-489E-8BC5-9C81E64B4316}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD30FCC8-DF70-489E-8BC5-9C81E64B4316}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD30FCC8-DF70-489E-8BC5-9C81E64B4316}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38DD6F04-1C07-460F-B2DD-331A0E5EB8DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38DD6F04-1C07-460F-B2DD-331A0E5EB8DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38DD6F04-1C07-460F-B2DD-331A0E5EB8DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38DD6F04-1C07-460F-B2DD-331A0E5EB8DB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

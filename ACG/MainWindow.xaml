@@ -1,0 +1,51 @@
+﻿<Window x:Class="Graphics.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:resources="clr-namespace:Graphics.UI.Resources"
+        mc:Ignorable="d"
+        Title="MainWindow"
+        MinHeight="400"
+        MinWidth="600"
+        WindowState="Maximized">
+    
+    <Window.Resources>
+        <resources:RenderModeToStringConverter x:Key="RenderModeToStringConverter"/>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="24"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Menu DockPanel.Dock="Top" Background="LightGray">
+            <MenuItem Header="File">
+                <MenuItem Header="Open .obj file" Click="BtnLoad_OnClick"/>
+            </MenuItem>
+            
+            <MenuItem Header="Clear scene" Click="BtnClear_OnClick"/>
+            
+            <ComboBox x:Name="RenderModeComboBox"
+                      SelectedItem="{Binding CurrentRenderMode}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock 
+                            Text="{Binding Converter={StaticResource RenderModeToStringConverter}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            
+        </Menu>
+
+        <StackPanel Focusable="True" Grid.Row="1" Name="ImagePanel" Background="White" 
+                    MouseWheel="ImagePanel_OnMouseWheel"
+                    MouseLeftButtonDown="ImagePanel_OnMouseLeftButtonDown"
+                    MouseLeftButtonUp="ImagePanel_OnMouseLeftButtonUp"
+                    KeyDown="ImagePanel_OnKeyDown"
+                    MouseMove="ImagePanel_OnMouseMove">
+            <Image x:Name="ImgDisplay" Stretch="Uniform"/>
+        </StackPanel>
+    </Grid>
+</Window>
