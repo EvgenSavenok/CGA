@@ -1,40 +1,22 @@
 ﻿using System.ComponentModel;
-using System.Windows;
-using System.Windows.Media;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 
-namespace Graphics.UI;
+namespace Graphics.UI.Light;
 
 public class CustomLight : INotifyPropertyChanged
 {
-    private Vector3 _source;
+    private Vector3 _sourceOfLight;
     private Color _color;
     private float _intensity;
 
-    public Vector3 Source
+    public Vector3 SourceOfLight
     {
-        get => _source;
-        set { _source = value; OnPropertyChanged(); }
-    }
-
-    public float X
-    {
-        get => _source.X;
-        set { _source.X = value; OnPropertyChanged(); }
+        get => _sourceOfLight;
+        set { _sourceOfLight = value; OnPropertyChanged(); }
     }
     
-    public float Y
-    {
-        get => _source.Y;
-        set { _source.Y = value; OnPropertyChanged(); }
-    }
-    
-    public float Z
-    {
-        get => _source.Z;
-        set { _source.Z = value; OnPropertyChanged(); }
-    }
     public Color Color
     {
         get => _color;

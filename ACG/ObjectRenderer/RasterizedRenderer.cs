@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
+using Graphics.UI.Light;
 
 namespace Graphics.UI.Render;
 
@@ -102,7 +103,6 @@ public static class RasterizedRenderer
                 
                 if (w0 >= 0 && w1 >= 0 && w2 >= 0)
                 {
-                    
                     w0 /= area;
                     w1 /= area;
                     w2 /= area;
@@ -125,7 +125,7 @@ public static class RasterizedRenderer
         float bColor = color.ScB;
         foreach (var light in lights)
         {
-            Vector3 lightDirection = (light.Source - center);
+            Vector3 lightDirection = (light.SourceOfLight - center);
             lightDirection = Vector3.Normalize(lightDirection);
 
             float intensity = MathF.Max(Vector3.Dot(normal, lightDirection) * light.Intensity, 0);

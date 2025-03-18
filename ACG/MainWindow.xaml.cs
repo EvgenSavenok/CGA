@@ -6,7 +6,10 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
+using Graphics.Core.Objects;
 using Graphics.Core.Transformations;
+using Graphics.UI.Light;
+using Graphics.UI.ObjectRenderer;
 using Graphics.UI.Render;
 using Microsoft.Win32;
 using Camera = Graphics.Core.Camera;
@@ -56,7 +59,7 @@ public partial class MainWindow : Window
         SpecularCoeff = 0.4f,
         Shininess = 32f,
         
-        AmbientColor = Colors.Black,
+        AmbientColor = Colors.Purple,
         DiffuseColor = Colors.White,
         SpecularColor = Colors.White,
         BackgroundColor = Colors.White
@@ -77,10 +80,10 @@ public partial class MainWindow : Window
     {
         new CustomLight()
         {
-            Source = new(0, 0, 3 ),
+            SourceOfLight = new(0, 0, 3 ),
             Intensity = 1f,
             Color = Colors.White
-        },
+        }
     };
 
     private ObservableCollection<CustomMaterial> _materials = new ObservableCollection<CustomMaterial>();
@@ -327,12 +330,6 @@ public partial class MainWindow : Window
             foreach (CustomMaterial material in e.OldItems)
             {
                 material.PropertyChanged -= Scene_Changed;
-
-                //TODO: implement correct deletion from dictionary
-                if (!_materials.Any(a => 
-                        (a.DiffuseMap == material.DiffuseMap)))
-                {
-                }
             }
         }
         RedrawModel();
@@ -360,15 +357,7 @@ public partial class MainWindow : Window
         switch (_currentRenderMode)
         {
             case RenderMode.Shadow:
-                if (_useMaterialFile)
-                {
-                    PhongShading.DrawObject(res, ObjModel, MyCamera, Wb, _lights.ToList(), _materials.ToList(), LightParams);
-                }
-                else
-                {
-                    PhongShading.DrawObject(res, ObjModel, MyCamera, Wb, _lights.ToList(), LightParams);
-                }
-
+                PhongShading.DrawObject(res, ObjModel, MyCamera, Wb, _lights.ToList(), LightParams);
                 break;
             case RenderMode.Wireframe:
                 WireframeRenderer.DrawObject(res,ObjModel,MyCamera, Wb, ForegroundSelectedColor);

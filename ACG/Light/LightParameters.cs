@@ -1,6 +1,6 @@
 ﻿using System.Windows.Media;
 
-namespace Graphics.UI;
+namespace Graphics.UI.Light;
 
 public class LightParameters
 {
@@ -38,16 +38,6 @@ public class LightParameters
             OnTransformationChanged();
         }
     }
-    
-    public float Transparency{
-        get => _transparency;
-        set
-        {
-            _transparency = value;
-            OnTransformationChanged();
-        }
-    }
-    
     
     public Color AmbientColor{
         get => _ambientColor;
@@ -91,10 +81,10 @@ public class LightParameters
     }
     
         
-    private Color _ambientColor = Colors.White;
-    private Color _diffuseColor = Colors.White;
-    private Color _specularColor = Colors.White;
-    private Color _backgroundColor = Colors.White;
+    private Color _ambientColor = Colors.Purple;
+    private Color _diffuseColor = Colors.Purple;
+    private Color _specularColor = Colors.Purple;
+    private Color _backgroundColor = Colors.Purple;
  
     private float _ambientCoeff;
     private float _diffuseCoeff;
