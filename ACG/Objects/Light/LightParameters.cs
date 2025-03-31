@@ -1,6 +1,6 @@
 ﻿using System.Windows.Media;
 
-namespace Graphics.UI.Light;
+namespace Graphics.UI.Objects.Light;
 
 public class LightParameters
 {

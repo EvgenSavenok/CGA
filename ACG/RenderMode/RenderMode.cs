@@ -4,5 +4,6 @@ public enum RenderMode
 {
     Shadow,      
     Wireframe,  
-    Rasterized,   
+    Rasterized,  
+    Texture
 }

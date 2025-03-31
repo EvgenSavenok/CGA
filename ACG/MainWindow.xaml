@@ -18,6 +18,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="24"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
         <Menu DockPanel.Dock="Top" Background="LightGray">
@@ -36,7 +37,6 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            
         </Menu>
 
         <StackPanel Focusable="True" Grid.Row="1" Name="ImagePanel" Background="White" 

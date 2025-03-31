@@ -1,13 +1,14 @@
-﻿using System.Numerics;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
-using Graphics.UI.Light;
+using Graphics.UI.Objects.Light;
 
 namespace Graphics.UI.ObjectRenderer;
 
-public static class PhongShading
+public static class PhongShadingRenderer
 {
     private static float[]? _zBuffer;
     
@@ -26,10 +27,16 @@ public static class PhongShading
         var width = wb.PixelWidth;
         var height = wb.PixelHeight;
 
-        Parallel.ForEach(model.Object.Faces, face =>
+        Parallel.ForEach(Partitioner.Create(0, model.Object.Faces.Count), range =>
         {
-            DrawFace(face, transformedVertices, model, camera, buffer, width, height, lights, lightParameters);
+            for (int i = range.Item1; i < range.Item2; i++)
+                DrawFace(model.Object.Faces[i], transformedVertices, model, camera, buffer, width, height, lights, lightParameters);
         });
+
+        // for (int i = 0; i < model.Object.Faces.Count; i++)
+        // {
+        //     DrawFace(model.Object.Faces[i], transformedVertices, model, camera, buffer, width, height, lights, lightParameters);
+        // }
 
         wb.AddDirtyRect(new Int32Rect(0, 0, wb.PixelWidth, wb.PixelHeight));
         wb.Unlock();
@@ -67,7 +74,7 @@ public static class PhongShading
     private static bool IsBackFace(Vector4 idx0, Vector4 idx1, Vector4 idx2, Camera camera)
     {
         int countNear = 0;
-        int countFar = 0;
+        int countFar = 0;     
 
         if (idx0.Z < camera.ZNear) 
             countNear++;
@@ -176,13 +183,12 @@ public static class PhongShading
         // Рассчитываем фоновое освещение
         var (rColor, gColor, bColor) = ComputeAmbientLighting(lightParameters);
 
-        // Для каждого источника света вычисляем его вклад в освещение
         foreach (var light in lights)
         {
             Vector3 lightDirection = Vector3.Normalize(light.SourceOfLight - center);
 
             // Рассчитываем рассеянное освещение
-            var diffuse = ComputeDiffuseLighting(normal, lightDirection, light, lightParameters, (rColor, gColor, bColor));
+            var diffuse = ComputeDiffuseLighting(normal, lightDirection, light, lightParameters);
 
             // Рассчитываем зеркальное освещение
             var finalColor = ComputeSpecularLighting(normal, lightDirection, viewDir, light, lightParameters, diffuse);
@@ -224,14 +230,13 @@ public static class PhongShading
         Vector3 normal, 
         Vector3 lightDirection, 
         CustomLight light,
-        LightParameters lightParameters,
-        (float rColor, float gColor, float bColor) ambient)
+        LightParameters lightParameters)
     {
         float intensity = MathF.Max(Vector3.Dot(normal, lightDirection) * light.Intensity, 0);
     
-        float rColor = intensity * light.Color.ScR * lightParameters.DiffuseCoeff * lightParameters.DiffuseColor.ScR;
-        float gColor = intensity * light.Color.ScG * lightParameters.DiffuseCoeff * lightParameters.DiffuseColor.ScG;
-        float bColor = intensity * light.Color.ScB * lightParameters.DiffuseCoeff * lightParameters.DiffuseColor.ScB;
+        float rColor = intensity * light.Color.ScR * lightParameters.DiffuseCoeff;
+        float gColor = intensity * light.Color.ScG * lightParameters.DiffuseCoeff;
+        float bColor = intensity * light.Color.ScB * lightParameters.DiffuseCoeff;
     
         return (rColor, gColor, bColor);
     }
@@ -249,7 +254,7 @@ public static class PhongShading
     }
 
     // (R * V)^a
-    private static float ComputeSpecular(Vector3 normal, Vector3 lightDir, Vector3 viewDir, float shininess)
+    public static float ComputeSpecular(Vector3 normal, Vector3 lightDir, Vector3 viewDir, float shininess)
     {
         // Вычисляется отраженный вектор R
         Vector3 reflectedLight = Vector3.Reflect(-lightDir, normal);  

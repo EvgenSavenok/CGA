@@ -1,11 +1,9 @@
-﻿using System.Drawing;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
-using Graphics.Core.Transformations;
 
-namespace Graphics.UI.Render;
+namespace Graphics.UI.ObjectRenderer;
 
 public static class WireframeRenderer
 {
@@ -51,61 +49,6 @@ public static class WireframeRenderer
         wb.Unlock();
     }
 
-    public static void DrawCoordinateGrid(WriteableBitmap wb, Camera camera, System.Windows.Media.Color color)
-    {
-        const float gridSize = 14f;  
-        const float step = 0.2f;    
-        var width = wb.PixelWidth;
-        var height = wb.PixelHeight;
-        int intColor = (color.B << 0) | (color.G << 8) | (color.R << 16) | (color.A << 24);
-        var viewTransform = Transformation.CreateViewMatrix(camera.EyeCoords, camera.Target, camera.Up);
-        
-        var projectionTransform = Transformation.CreatePerspectiveProjection(camera.Fov, camera.Aspect, camera.ZNear, camera.ZFar);
-
-        var viewportTransform = Transformation.CreateViewportMatrix(wb.PixelWidth, wb.PixelHeight);
-        var finalTransform = viewTransform * projectionTransform * viewportTransform;
-        
-        Vector4 start, end;
-        for (float x = -gridSize; x <= gridSize; x += step)
-        {
-            start = new Vector4(x, 0, -gridSize,1);
-            end = new Vector4(x, 0, gridSize,1);
-
-            var startViewport = Transformation.ApplyTransformations(start, camera, finalTransform);
-            var endViewport = Transformation.ApplyTransformations(end, camera, finalTransform);
-            
-            int x0 = (int)Math.Round(startViewport.X);
-            int y0 = (int)Math.Round(startViewport.Y);
-            int x1 = (int)Math.Round(endViewport.X);
-            int y1 = (int)Math.Round(endViewport.Y);
-            float z0 = startViewport.Z;
-            float z1 = endViewport.Z;
-            if (!((z0 < 0 || z1 < 0)))
-            {
-                DrawLineBresenham(wb.BackBuffer, wb.PixelWidth, wb.PixelHeight, x0,y0, x1, y1,intColor);
-            }
-        }
-        
-        for (float z = -gridSize; z <= gridSize; z += step)
-        {
-            start = new Vector4(-gridSize, 0, z,1);
-            end = new Vector4(gridSize, 0, z,1);
-
-            var startViewport = Transformation.ApplyTransformations(start, camera, finalTransform);
-            var endViewport = Transformation.ApplyTransformations(end, camera, finalTransform);
-            
-            int x0 = (int)Math.Round(startViewport.X);
-            int y0 = (int)Math.Round(startViewport.Y);
-            int x1 = (int)Math.Round(endViewport.X);
-            int y1 = (int)Math.Round(endViewport.Y);
-            float z0 = startViewport.Z;
-            float z1 = endViewport.Z;
-            if (!((z0 < 0 || z1 < 0)))
-            {
-                DrawLineBresenham(wb.BackBuffer, wb.PixelWidth, wb.PixelHeight, x0,y0, x1, y1,intColor);
-            }
-        }
-    }
     private static unsafe void DrawLineBresenham(IntPtr buffer, int width, int height, int x0, int y0, int x1, int y1,
         int color)
     {

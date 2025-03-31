@@ -7,10 +7,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
 using Graphics.Core.Objects;
+using Graphics.Core.Parsers;
 using Graphics.Core.Transformations;
-using Graphics.UI.Light;
 using Graphics.UI.ObjectRenderer;
-using Graphics.UI.Render;
+using Graphics.UI.Objects.Light;
+using Graphics.UI.Objects.Textures;
 using Microsoft.Win32;
 using Camera = Graphics.Core.Camera;
 using Vector = System.Windows.Vector;
@@ -19,7 +20,7 @@ namespace Graphics.UI;
 
 public partial class MainWindow : Window
 {
-    private RenderMode _currentRenderMode = RenderMode.Shadow;
+    private RenderMode _currentRenderMode = RenderMode.Texture;
     public RenderMode CurrentRenderMode
     {
         get => _currentRenderMode;
@@ -34,6 +35,8 @@ public partial class MainWindow : Window
     private Camera MyCamera { get; set; } = new Camera();
     private ObjectModel? ObjModel { get; set; } = new ObjectModel();
     private WriteableBitmap? Wb { get; set; } 
+    
+    private Dictionary<string, Texture> _texturesMap = new Dictionary<string, Texture>();
     public Color ForegroundSelectedColor
     {
         get => LightParams.AmbientColor;
@@ -83,8 +86,38 @@ public partial class MainWindow : Window
             SourceOfLight = new(0, 0, 3 ),
             Intensity = 1f,
             Color = Colors.White
-        }
+        },
+        // new CustomLight()
+        // {
+        //     SourceOfLight = new(0, 0, 3 ),
+        //     Intensity = 1f,
+        //     Color = Colors.White
+        // },
     };
+    
+    public string SelectedMaterialFile
+    {
+        get => _selectedMaterialFile;
+        set
+        {
+            _selectedMaterialFile = value;
+            try
+            {
+                var materialFile = TextureParser.Parse(value);
+                _materials.Clear();
+
+                foreach (var material in materialFile.Materials)
+                {
+                    _materials.Add(material.Value);
+                }
+            }
+            catch (FileNotFoundException e)
+            {
+                MessageBox.Show($"{e.FileName} not found!!!");
+            }
+            Scene_Changed(this,new EventArgs());
+        }
+    }
 
     private ObservableCollection<CustomMaterial> _materials = new ObservableCollection<CustomMaterial>();
     private bool _isRotating;
@@ -130,12 +163,15 @@ public partial class MainWindow : Window
                 {
                     light.PropertyChanged += Scene_Changed;
                 }
-
     
-                ObjModel.Object.MtlFile = System.IO.Path.GetDirectoryName(dlg.FileName) + System.IO.Path.DirectorySeparatorChar + ObjModel.Object.MtlFile;
-                ObjModel.Scale = ObjModel.Delta * 10f; // вызовет UpdateImage -> RedrawModel();
+                ObjModel.Object.MtlFile = Path.GetDirectoryName(dlg.FileName) + Path.DirectorySeparatorChar + ObjModel.Object.MtlFile;
+                SelectedMaterialFile = ObjModel.Object.MtlFile;
+                // Для того, чтобы все перерисовалось
+                // Вызовется RedrawModel()
+                ObjModel.Scale = ObjModel.Delta * 10f; 
                 
-                MyCamera.Target -= new Vector3(0, -1.0f, 0); // Опускаем модель вниз
+                // Опускаем модель пониже
+                MyCamera.Target -= new Vector3(0, -1.0f, 0); 
                 RedrawModel();
                 
             }
@@ -300,7 +336,6 @@ public partial class MainWindow : Window
         RedrawModel();
     }
     
-    
     private void Materials_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems != null)
@@ -311,7 +346,20 @@ public partial class MainWindow : Window
                 {
                     try
                     {
+                        if (!_texturesMap.ContainsKey(material.DiffuseMap) && !string.IsNullOrEmpty(material.DiffuseMap))
+                        {
+                            _texturesMap.TryAdd(material.DiffuseMap, new Texture(material.DiffuseMap));
+                        }
                         
+                        if (!_texturesMap.ContainsKey(material.NormalMap) && !string.IsNullOrEmpty(material.NormalMap))
+                        {
+                            _texturesMap.TryAdd(material.NormalMap, new Texture(material.NormalMap));
+                        }
+                        
+                        if (!_texturesMap.ContainsKey(material.SpecularMap) && !string.IsNullOrEmpty(material.SpecularMap))
+                        {
+                            _texturesMap.TryAdd(material.SpecularMap, new Texture(material.SpecularMap));
+                        }
                     }
                     catch (FileNotFoundException e){}
                 };
@@ -320,6 +368,14 @@ public partial class MainWindow : Window
 
                 try
                 {
+                    if (!string.IsNullOrEmpty(material.DiffuseMap))
+                        _texturesMap.TryAdd(material.DiffuseMap, new Texture(material.DiffuseMap));
+                    
+                    if (!string.IsNullOrEmpty(material.NormalMap))
+                        _texturesMap.TryAdd(material.NormalMap, new Texture(material.NormalMap));
+                    
+                    if (!string.IsNullOrEmpty(material.SpecularMap))
+                        _texturesMap.TryAdd(material.SpecularMap, new Texture(material.SpecularMap));
                 }
                 catch (FileNotFoundException ex){}
             }
@@ -334,6 +390,7 @@ public partial class MainWindow : Window
         }
         RedrawModel();
     }
+    
     private void Scene_Changed(object? sender, EventArgs e)
     {
         RedrawModel();
@@ -341,7 +398,8 @@ public partial class MainWindow : Window
 
     private void RedrawModel()
     {
-        if (Wb == null || ObjModel == null) return;
+        if (Wb == null || ObjModel == null) 
+            return;
         
         var viewTransform = Transformation.CreateViewMatrix(MyCamera.EyeCoords, MyCamera.Target, MyCamera.Up);
         
@@ -351,19 +409,21 @@ public partial class MainWindow : Window
         
         var finalTransform = viewTransform * projectionTransform * viewportTransform;
         var res =Transformation.ApplyTransformations(ObjModel,MyCamera,finalTransform);
-
         
-        PhongShading.ClearBitmap(Wb, BackgroundSelectedColor);
+        PhongShadingRenderer.ClearBitmap(Wb, BackgroundSelectedColor);
         switch (_currentRenderMode)
         {
             case RenderMode.Shadow:
-                PhongShading.DrawObject(res, ObjModel, MyCamera, Wb, _lights.ToList(), LightParams);
+                PhongShadingRenderer.DrawObject(res, ObjModel, MyCamera, Wb, _lights.ToList(), LightParams);
                 break;
             case RenderMode.Wireframe:
                 WireframeRenderer.DrawObject(res,ObjModel,MyCamera, Wb, ForegroundSelectedColor);
                 break;
             case RenderMode.Rasterized:
                 RasterizedRenderer.DrawObject(res, ObjModel, MyCamera, Wb, ForegroundSelectedColor, _lights.ToList());
+                break;
+            case RenderMode.Texture:
+                TextureRenderer.DrawObject(res,ObjModel,MyCamera,Wb,_lights.ToList(),_materials.ToList(), LightParams, _texturesMap);
                 break;
         }
     }

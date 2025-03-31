@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 
-namespace Graphics.UI.Light;
+namespace Graphics.UI.Objects.Light;
 
 public class CustomLight : INotifyPropertyChanged
 {

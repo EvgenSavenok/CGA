@@ -5,14 +5,15 @@ namespace Graphics.UI.Resources;
 
 public class RenderModeToStringConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object parameter, CultureInfo culture)
     {
         return value switch
         {
+            RenderMode.Texture => "Texture",
             RenderMode.Shadow => "Shadows",
             RenderMode.Wireframe => "Wireframe",
             RenderMode.Rasterized => "Rasterized",
-            _ => value.ToString()
+            _ => value!.ToString()
         };
     }
 

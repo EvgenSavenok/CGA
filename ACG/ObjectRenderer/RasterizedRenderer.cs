@@ -3,19 +3,19 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Graphics.Core;
-using Graphics.UI.Light;
+using Graphics.UI.Objects.Light;
 
-namespace Graphics.UI.Render;
+namespace Graphics.UI.ObjectRenderer;
 
 public static class RasterizedRenderer
 {
-    private static float[] zBuffer;
+    private static float[]? _zBuffer;
     
     public static void DrawObject(Vector4[] transformedVertices, ObjectModel model, Camera camera, WriteableBitmap wb, Color color,
         List<CustomLight> lights
         )
     {
-        zBuffer = new float[wb.PixelHeight * wb.PixelWidth];
+        _zBuffer = new float[wb.PixelHeight * wb.PixelWidth];
         wb.Lock();
         int intColor = (color.B << 0) | (color.G << 8) | (color.R << 16) | (color.A << 24);
         var pBackBuffer = wb.BackBuffer;
@@ -27,12 +27,7 @@ public static class RasterizedRenderer
             if (count < 2)
                 return;
 
-            int maxX = int.MinValue;
-            int minX = int.MaxValue;
-            int maxY = int.MinValue;
-            int minY = int.MaxValue;
 
-            
             var vertices = face.Vertices.Select(index => transformedVertices[index.VertexIndex - 1]).ToArray();
             var worldVertices = face.Vertices.Select(index => model.TransformedVertices[index.VertexIndex - 1]).ToArray();
             for (int j = 1; j < count - 1; j++)
@@ -108,9 +103,9 @@ public static class RasterizedRenderer
                     w2 /= area;
                     float z = v0.Z * w0 + v1.Z * w1 + v2.Z * w2;
                     z = 1 / z;
-                    if (z > zBuffer[y * width + x])
+                    if (z > _zBuffer![y * width + x])
                     {
-                        Interlocked.Exchange(ref zBuffer[y * width + x], z);
+                        Interlocked.Exchange(ref _zBuffer[y * width + x], z);
                         bufferPtr[y * width + x] = color;
                     }
                 }
@@ -139,33 +134,5 @@ public static class RasterizedRenderer
             ((int)MathF.Min(255.0f,MathF.Round(((gColor) * 255))) << 8) |
             ((int)MathF.Min(255.0f,MathF.Round(((rColor) * 255))) << 16) |
             ((int)MathF.Round(color.A) << 24);
-    }
-    public static void ClearBitmap(WriteableBitmap wb, System.Windows.Media.Color clearColor)
-    {
-        int intColor = (clearColor.A << 24) | (clearColor.R << 16) | (clearColor.G << 8) | clearColor.B;
-        zBuffer = new float[wb.PixelHeight * wb.PixelWidth];
-        wb.Lock();
-        
-        try
-        {
-            unsafe
-            {
-                int* pBackBuffer = (int*)wb.BackBuffer;
-
-                for (int i = 0; i < wb.PixelHeight; i++)
-                {
-                    for (int j = 0; j < wb.PixelWidth; j++)
-                    {
-                        *pBackBuffer++ = intColor;
-                    }
-                }
-            }
-
-            wb.AddDirtyRect(new Int32Rect(0, 0, wb.PixelWidth, wb.PixelHeight));
-        }
-        finally
-        {
-            wb.Unlock();
-        }
     }
 }
