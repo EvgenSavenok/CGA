@@ -111,6 +111,7 @@ public static class PhongShadingRenderer
         xMin = Math.Max(0, xMin);
         yMin = Math.Max(0, yMin);
         
+        // denom - это детерминант(объем) треугольника
         float denom = (v2.X - v0.X) * (v1.Y - v0.Y) - (v2.Y - v0.Y) * (v1.X - v0.X);
         if (Math.Abs(denom) < float.Epsilon) 
             return; 

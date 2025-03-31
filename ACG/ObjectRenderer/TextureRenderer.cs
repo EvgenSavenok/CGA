@@ -121,9 +121,12 @@ public static class TextureRenderer
             texturePositions.ToArray(), 
             worldVertices.ToArray(), 
             normals, 
-            camera, pBackBuffer, width, height, 
+            camera, 
+            pBackBuffer, 
+            width, height, 
             lights, faceLightParameters, 
-            diffuseTexture, normalTexture, specularTexture, matrix);
+            diffuseTexture, normalTexture, specularTexture, 
+            matrix);
     }
         
     private static void ProcessTriangles(
@@ -133,13 +136,9 @@ public static class TextureRenderer
         Vector4[] normals,
         Camera camera,
         IntPtr pBackBuffer,
-        int width,
-        int height,
-        List<CustomLight> lights,
-        LightParameters faceLightParameters,
-        Texture? diffuseTexture,
-        Texture? normalTexture,
-        Texture? specularTexture,
+        int width, int height,
+        List<CustomLight> lights, LightParameters faceLightParameters,
+        Texture? diffuseTexture, Texture? normalTexture, Texture? specularTexture,
         Matrix4x4 matrix)
     {
         int count = vertices.Length;
@@ -150,54 +149,49 @@ public static class TextureRenderer
             Vector4 idx1 = vertices[j];
             Vector4 idx2 = vertices[j + 1];
 
+            // Добавились текстурные координаты
             Vector3 uv0 = texturePositions[0];
             Vector3 uv1 = texturePositions[j];
             Vector3 uv2 = texturePositions[j + 1];
-
-            Vector4 v1 = worldVertices[j] - worldVertices[0];
-            Vector4 v2 = worldVertices[j + 1] - worldVertices[0];
-            Vector3 normal = Vector3.Cross(
-                new Vector3(v1.X, v1.Y, v1.Z),
-                new Vector3(v2.X, v2.Y, v2.Z));
-
-            Vector4 center4 = (worldVertices[0] + worldVertices[j] + worldVertices[j + 1]) / 3.0f;
-            var center = new Vector3(center4.X, center4.Y, center4.Z);
-            var cameraDirection = (center - camera.EyeCoords);
-
-            if (Vector3.Dot(normal, cameraDirection) <= 0)
+            
+            if (IsBackFace(idx0, idx1, idx2, camera))
             {
-                int countNear = 0;
-                int countFar = 0;
-
-                if (idx0.Z < camera.ZNear) countNear++;
-                if (idx1.Z < camera.ZNear) countNear++;
-                if (idx2.Z < camera.ZNear) countNear++;
-
-                if (idx0.Z > camera.ZFar) countFar++;
-                if (idx1.Z > camera.ZFar) countFar++;
-                if (idx2.Z > camera.ZFar) countFar++;
-
-                if (countFar + countNear < 1)
-                {
-                    RasterizeTriangle(
-                        pBackBuffer, width, height,
-                        idx0, idx1, idx2,
-                        normals[0], normals[j], normals[j + 1],
-                        uv0, uv1, uv2,
-                        worldVertices[0], worldVertices[j], worldVertices[j + 1],
-                        lights, faceLightParameters, camera,
-                        diffuseTexture, normalTexture, specularTexture,
-                        matrix
-                    );
-                }
+                RasterizeTriangle(
+                    pBackBuffer, width, height,
+                    idx0, idx1, idx2,
+                    normals[0], normals[j], normals[j + 1],
+                    uv0, uv1, uv2,
+                    worldVertices[0], worldVertices[j], worldVertices[j + 1],
+                    lights, faceLightParameters, camera,
+                    diffuseTexture, normalTexture, specularTexture,
+                    matrix
+                );
             }
         }
     }
-        
-    private static float EdgeFunction(Vector4 a, Vector4 b, Vector4 c)
+    
+    private static bool IsBackFace(Vector4 idx0, Vector4 idx1, Vector4 idx2, Camera camera)
     {
-        return (c.X - a.X) * (b.Y - a.Y) - (c.Y - a.Y) * (b.X - a.X);
+        int countNear = 0;
+        int countFar = 0;     
+
+        if (idx0.Z < camera.ZNear) 
+            countNear++;
+        if (idx1.Z < camera.ZNear) 
+            countNear++;
+        if (idx2.Z < camera.ZNear) 
+            countNear++;
+
+        if (idx0.Z > camera.ZFar) 
+            countFar++;
+        if (idx1.Z > camera.ZFar) 
+            countFar++;
+        if (idx2.Z > camera.ZFar)
+            countFar++;
+
+        return countFar + countNear < 1;
     }
+    
     private static unsafe void RasterizeTriangle(IntPtr buffer,  int width, int height,
         Vector4 v0, Vector4 v1, Vector4 v2,
         Vector4 n0, Vector4 n1, Vector4 n2,
@@ -209,6 +203,7 @@ public static class TextureRenderer
         )
     {
         int* bufferPtr = (int*)buffer;
+        
         var xMin = (int)Math.Round(MathF.Min(v0.X, MathF.Min(v1.X, v2.X)));
         var yMin = (int)Math.Round(MathF.Min(v0.Y, MathF.Min(v1.Y, v2.Y)));
         var xMax = (int)Math.Round(MathF.Max(v0.X, MathF.Max(v1.X, v2.X)));
@@ -219,83 +214,75 @@ public static class TextureRenderer
         xMin = Math.Max(0, xMin);
         yMin = Math.Max(0, yMin);
         
-        float area =  EdgeFunction(v0, v1, v2);
+        // denom - это детерминант(объем) треугольника
+        float denom = (v2.X - v0.X) * (v1.Y - v0.Y) - (v2.Y - v0.Y) * (v1.X - v0.X);
+        if (Math.Abs(denom) < float.Epsilon) 
+            return; 
         
         for (var y = yMin; y <= yMax; y++)
         {
+            if (y < 0 || y >= height)
+                return;
+            
             for (var x = xMin; x <= xMax; x++)
             {
-                Vector4 pixel = new Vector4(x, y, 0, 1);
-                float w0 =  EdgeFunction(v1, v2, pixel);
-                float w1 =  EdgeFunction(v2, v0, pixel);
-                float w2 =  EdgeFunction(v0, v1, pixel);
+                if (x < 0 || x >= width)
+                    continue;
                 
-                if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+                Vector4 pixel = new Vector4(x, y, 0, 1);
+                
+                float alpha = (pixel.X - v1.X) * (v2.Y - v1.Y) - (pixel.Y - v1.Y) * (v2.X - v1.X);
+                float beta = (pixel.X - v2.X) * (v0.Y - v2.Y) - (pixel.Y - v2.Y) * (v0.X - v2.X);
+                float gamma = (pixel.X - v0.X) * (v1.Y - v0.Y) - (pixel.Y - v0.Y) * (v1.X - v0.X);
+                
+                if (alpha >= 0 && beta >= 0 && gamma >= 0)
                 {
-                    var w0Old = v0.W;
-                    var w1Old = v1.W;
-                    var w2Old = v2.W;
+                    // Сохраняем w-координаты (которые были 4-ми в Vector4)
+                    // Они нужны для учёта перспективы
+                    var w0_Old = v0.W;
+                    var w1_Old = v1.W;
+                    var w2_Old = v2.W;
                     
-                    w0 /= area;
-                    w1 /= area;
-                    w2 /= area;
+                    alpha /= denom;
+                    beta /= denom;
+                    gamma /= denom;
 
-                    float z = v0.Z * w0 + v1.Z * w1 + v2.Z * w2;
+                    float depth = v0.Z * alpha + v1.Z * beta + v2.Z * gamma;
                     
                     var index = y * width + x;
                     
-                    z = 1.0f / z;
+                    depth = 1.0f / depth;
                     //lock (zLock) 
                     //{
-                        if (_zBuffer != null && z > _zBuffer[index])
+                        if (_zBuffer != null && depth > _zBuffer[index])
                         {
-                            float div = w0 / w0Old + w1 / w1Old + w2 / w2Old;
+                            // Нормализующий коэффициент
+                            float div = alpha / w0_Old + beta / w1_Old + gamma / w2_Old;
                             
-                            float u = ((w0 * uv0.X) / w0Old + (w1 * uv1.X) / w1Old + (w2 * uv2.X) / w2Old) / div;
-                            float v = ((w0 * uv0.Y) / w0Old + (w1 * uv1.Y) / w1Old + (w2 * uv2.Y) / w2Old) / div;
+                            // Вычисление текстурных координат для текущего текселя
+                            float u = ((alpha * uv0.X) / w0_Old + (beta * uv1.X) / w1_Old + (gamma * uv2.X) / w2_Old) / div;
+                            float v = ((alpha * uv0.Y) / w0_Old + (beta * uv1.Y) / w1_Old + (gamma * uv2.Y) / w2_Old) / div;
 
+                            // Инвертирование текстур
                             v = 1.0f - v;
 
+                            // Ограничение u и v в пределах [0, 1]
                             u = Math.Clamp(u, 0.0f, 1.0f);
                             v = Math.Clamp(v, 0.0f, 1.0f);
 
-                            //Diffuse map
-                            Color diffuseColor;
-                            diffuseColor = diffuseTexture?.GetColor(u, v) ?? Colors.Fuchsia;
+                            // Диффузная карта
+                            Color diffuseColor = SampleDiffuseColor(diffuseTexture, u, v);
 
-                            //Normal map
-                            Vector3 normal;
-                            if (normalMap == null)
-                            {
-                                Vector4 normal4 = (n0 * w0 + n1 * w1 + n2 * w2);
-                                normal = new Vector3(normal4.X, normal4.Y, normal4.Z);
-                            }
-                            else
-                            {
-                                Color normalColor = normalMap.GetColor(u, v);
-                                Vector3 sampledNormal = new Vector3(
-                                    normalColor.ScR * 2 - 1,
-                                    normalColor.ScG * 2 - 1,
-                                    normalColor.ScB * 2 - 1
-                                );
-                                normal = Vector3.TransformNormal(sampledNormal, modelWorldMatrix);
-                                normal = Vector3.Normalize(normal);
-                            }
+                            // Карта нормалей
+                            Vector3 normal = SampleNormal(normalMap, u, v, n0, n1, n2, alpha, beta, gamma, modelWorldMatrix);
                             
-                            //Specular color
-                            float specularStrength = 1.0f;
-                            Color specularColor = lightParameters.SpecularColor;
-
-                            if (specularMap != null)
-                            {
-                                specularColor = specularMap.GetColor(u, v);
-                                specularStrength = (specularColor.ScR + specularColor.ScG + specularColor.ScB) /
-                                                   3.0f;
-                            }
-
-                            float specularCoeff = lightParameters.SpecularCoeff * specularStrength;
+                            // Зеркальная карта
+                            (Color specularColor, float specularCoeff) = 
+                                SampleSpecular(specularMap, u, v, lightParameters);
                             
-                            Vector4 position4 = (world0 * w0 + world1 * w1 + world2 * w2);
+                            // Вычисляем мировую позицию точки 
+                            Vector4 position4 = (world0 * alpha + world1 * beta + world2 * gamma);
+                            // Переводим из Vector4 в Vector3, отбрасывая W
                             Vector3 position = new Vector3(position4.X, position4.Y, position4.Z);
 
                             int phongColor = ApplyPhongShading(
@@ -304,14 +291,70 @@ public static class TextureRenderer
                                 specularColor, specularCoeff,
                                 camera);
                            
-                                Interlocked.Exchange(ref _zBuffer[index], z);
-
+                                Interlocked.Exchange(ref _zBuffer[index], depth);
+                                
                                 Interlocked.Exchange(ref bufferPtr[index], phongColor);
                         }
                     //}
                 }
             }
         }
+    }
+    
+    private static Color SampleDiffuseColor(Texture? diffuseTexture, float u, float v)
+    {
+        return diffuseTexture?.GetColor(u, v) ?? Colors.Fuchsia;
+    }
+
+    private static Vector3 SampleNormal(
+        Texture? normalMap, 
+        float u, float v, 
+        Vector4 n0, Vector4 n1, Vector4 n2, 
+        float alpha, float beta, float gamma, 
+        Matrix4x4 modelWorldMatrix)
+    {
+        if (normalMap == null)
+        {
+            Vector4 normal4 = (n0 * alpha + n1 * beta + n2 * gamma);
+            return new Vector3(normal4.X, normal4.Y, normal4.Z);
+        }
+
+        Color normalColor = normalMap.GetColor(u, v);
+        // Преобразуем цветовые компоненты в координаты нормали
+        // ScR, ScG, ScB — это каналы цвета в диапазоне [0, 1]
+        // А нормали должны быть в [-1, 1]
+        Vector3 sampledNormal = new Vector3(
+            normalColor.ScR * 2 - 1,
+            normalColor.ScG * 2 - 1,
+            normalColor.ScB * 2 - 1
+        );
+
+        sampledNormal = Vector3.TransformNormal(sampledNormal, modelWorldMatrix);
+        
+        return Vector3.Normalize(sampledNormal);
+    }
+
+    private static (Color specularColor, float specularCoeff) SampleSpecular(
+        Texture? specularMap, 
+        float u, float v, 
+        LightParameters lightParameters)
+    {
+        // Изначально считаем, что поверхность полностью отражает свет
+        float specularStrength = 1.0f;
+        // Используем цвет источника света
+        Color specularColor = lightParameters.SpecularColor;
+
+        if (specularMap != null)
+        {
+            specularColor = specularMap.GetColor(u, v);
+            // Среднее значение каналов R, G и B
+            // Чем ярче пиксель, тем сильнее отражение
+            specularStrength = (specularColor.ScR + specularColor.ScG + specularColor.ScB) / 3.0f;
+        }
+
+        float specularCoeff = lightParameters.SpecularCoeff * specularStrength;
+
+        return (specularColor, specularCoeff);
     }
 
     private static int ApplyPhongShading(
@@ -338,7 +381,7 @@ public static class TextureRenderer
 
             float intensity = MathF.Max(Vector3.Dot(normal, lightDirection) * light.Intensity, 0);
             
-            
+            // Чем ярче точка освещена, тем сильнее её цвет проявляется
             rColor += intensity * light.Color.ScR * lightParameters.DiffuseCoeff * diffuseColor.ScR;
             gColor += intensity * light.Color.ScG * lightParameters.DiffuseCoeff * diffuseColor.ScG;
             bColor += intensity * light.Color.ScB * lightParameters.DiffuseCoeff * diffuseColor.ScB;

@@ -21,13 +21,16 @@ public class Texture
 
     public Color GetColor(float u, float v)
     {
-        
+        // u и v - нормализованные координаты
+        // x и y - пиксельные координаты
         int x = (int)(u * (_width - 1));
         int y = (int)(v * (_height - 1));
-
         
-        x = x % _width;
-        y = y % _height;
+        // Для зацикливания текстуры (если x = 102, а _width = 100,
+        // то x % 100 = 2, т.е. пиксель возьмется из начала текстуры
+        x %= _width;
+        y %= _height;
+        // Смещение пикселя в массиве _pixels, который хранит все пиксели текстуры
         int offset = y * _stride + x * 4;
         
         return Color.FromArgb(
@@ -37,7 +40,6 @@ public class Texture
             _pixels[offset]       // Blue
         );
     }
-
     
     public Texture(string path)
     {
