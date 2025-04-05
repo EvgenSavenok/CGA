@@ -1,9 +1,7 @@
 ﻿using System.Globalization;
 using System.Numerics;
-using System.Runtime.Remoting;
-using System.Xml.Schema;
 
-namespace Graphics.Core;
+namespace Graphics.Core.Parsers;
 
 public static class ObjParser
 {

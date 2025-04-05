@@ -12,9 +12,10 @@ namespace Graphics.UI.ObjectRenderer;
 
 public static class TextureRenderer
 {
-    private static float[]? _zBuffer;
+    private static float[] _zBuffer = null!;
+    private static SpinLock[] _lockBuffer = null!;
     
-    private static object _zLock = new ();
+    private static readonly object ZLock = new ();
 
     public static void DrawObject(
         Vector4[] transformedVertices, 
@@ -27,7 +28,12 @@ public static class TextureRenderer
         Dictionary<string,Texture> textures
     )
     {
+        
         _zBuffer = new float[wb.PixelHeight * wb.PixelWidth];
+        //Array.Fill(_zBuffer, 1);
+        _lockBuffer = new SpinLock[wb.PixelHeight * wb.PixelWidth];
+        Array.Fill(_lockBuffer, new SpinLock(false));
+        
         wb.Lock();
 
         var matrix = model.GetWorldMatrix();
@@ -153,7 +159,7 @@ public static class TextureRenderer
             Vector3 uv0 = texturePositions[0];
             Vector3 uv1 = texturePositions[j];
             Vector3 uv2 = texturePositions[j + 1];
-            
+                
             if (IsBackFace(idx0, idx1, idx2, camera))
             {
                 RasterizeTriangle(
@@ -202,6 +208,10 @@ public static class TextureRenderer
         Matrix4x4 modelWorldMatrix
         )
     {
+        uv0 *= v0.W;
+        uv1 *= v1.W;
+        uv2 *= v2.W;
+        
         int* bufferPtr = (int*)buffer;
         
         var xMin = (int)Math.Round(MathF.Min(v0.X, MathF.Min(v1.X, v2.X)));
@@ -237,8 +247,6 @@ public static class TextureRenderer
                 
                 if (alpha >= 0 && beta >= 0 && gamma >= 0)
                 {
-                    // Сохраняем w-координаты (которые были 4-ми в Vector4)
-                    // Они нужны для учёта перспективы
                     var w0_Old = v0.W;
                     var w1_Old = v1.W;
                     var w2_Old = v2.W;
@@ -248,53 +256,57 @@ public static class TextureRenderer
                     gamma /= denom;
 
                     float depth = v0.Z * alpha + v1.Z * beta + v2.Z * gamma;
+                    float depthW = v0.W * alpha + v1.W * beta + v2.W * gamma;
                     
                     var index = y * width + x;
                     
                     depth = 1.0f / depth;
-                    //lock (zLock) 
-                    //{
-                        if (_zBuffer != null && depth > _zBuffer[index])
-                        {
-                            // Нормализующий коэффициент
-                            float div = alpha / w0_Old + beta / w1_Old + gamma / w2_Old;
+                    // lock (ZLock) 
+                    // {
+                    var gotLock = false;
+                    _lockBuffer[index].Enter(ref gotLock);
+                    if (_zBuffer != null && depth > _zBuffer[index])
+                    {
+                        // Нормализующий коэффициент
+                        float div = alpha / w0_Old + beta / w1_Old + gamma / w2_Old;
+                        
+                        // Вычисление текстурных координат для текущего текселя
+                        float u = ((alpha * uv0.X)  + (beta * uv1.X) + (gamma * uv2.X)) / depthW;
+                        float v = ((alpha * uv0.Y)  + (beta * uv1.Y) + (gamma * uv2.Y)) / depthW;
+
+                        // Инвертирование текстур
+                        v = 1.0f - v;
+
+                        // Ограничение u и v в пределах [0, 1]
+                        u = Math.Clamp(u, 0.0f, 1.0f);
+                        v = Math.Clamp(v, 0.0f, 1.0f);
+
+                        // Диффузная карта
+                        Color diffuseColor = SampleDiffuseColor(diffuseTexture, u, v);
+
+                        // Карта нормалей
+                        Vector3 normal = SampleNormal(normalMap, u, v, n0, n1, n2, alpha, beta, gamma, modelWorldMatrix);
+                        
+                        // Зеркальная карта
+                        (Color specularColor, float specularCoeff) = 
+                            SampleSpecular(specularMap, u, v, lightParameters);
+                        
+                        // Вычисляем мировую позицию точки 
+                        Vector4 position4 = (world0 * alpha + world1 * beta + world2 * gamma);
+                        // Переводим из Vector4 в Vector3, отбрасывая W
+                        Vector3 position = new Vector3(position4.X, position4.Y, position4.Z);
+
+                        int phongColor = ApplyPhongShading(
+                            normal, position, lights, lightParameters,
+                            diffuseColor,
+                            specularColor, specularCoeff,
+                            camera);
+                       
+                            _zBuffer[index] = depth;
                             
-                            // Вычисление текстурных координат для текущего текселя
-                            float u = ((alpha * uv0.X) / w0_Old + (beta * uv1.X) / w1_Old + (gamma * uv2.X) / w2_Old) / div;
-                            float v = ((alpha * uv0.Y) / w0_Old + (beta * uv1.Y) / w1_Old + (gamma * uv2.Y) / w2_Old) / div;
-
-                            // Инвертирование текстур
-                            v = 1.0f - v;
-
-                            // Ограничение u и v в пределах [0, 1]
-                            u = Math.Clamp(u, 0.0f, 1.0f);
-                            v = Math.Clamp(v, 0.0f, 1.0f);
-
-                            // Диффузная карта
-                            Color diffuseColor = SampleDiffuseColor(diffuseTexture, u, v);
-
-                            // Карта нормалей
-                            Vector3 normal = SampleNormal(normalMap, u, v, n0, n1, n2, alpha, beta, gamma, modelWorldMatrix);
-                            
-                            // Зеркальная карта
-                            (Color specularColor, float specularCoeff) = 
-                                SampleSpecular(specularMap, u, v, lightParameters);
-                            
-                            // Вычисляем мировую позицию точки 
-                            Vector4 position4 = (world0 * alpha + world1 * beta + world2 * gamma);
-                            // Переводим из Vector4 в Vector3, отбрасывая W
-                            Vector3 position = new Vector3(position4.X, position4.Y, position4.Z);
-
-                            int phongColor = ApplyPhongShading(
-                                normal, position, lights, lightParameters,
-                                diffuseColor,
-                                specularColor, specularCoeff,
-                                camera);
-                           
-                                Interlocked.Exchange(ref _zBuffer[index], depth);
-                                
-                                Interlocked.Exchange(ref bufferPtr[index], phongColor);
-                        }
+                            bufferPtr[index] = phongColor;
+                    }
+                    _lockBuffer[index].Exit(false);
                     //}
                 }
             }
@@ -339,9 +351,7 @@ public static class TextureRenderer
         float u, float v, 
         LightParameters lightParameters)
     {
-        // Изначально считаем, что поверхность полностью отражает свет
         float specularStrength = 1.0f;
-        // Используем цвет источника света
         Color specularColor = lightParameters.SpecularColor;
 
         if (specularMap != null)

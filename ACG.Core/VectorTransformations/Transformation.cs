@@ -87,15 +87,16 @@ public static class Transformation
       Parallel.For(0, count, i =>
       {
          var v = Vector4.Transform(model.TransformedVertices[i], finalTransform);
-         if (v.Z > camera.ZNear && v.Z < camera.ZFar) 
+         if (v.Z > camera.ZNear && v.Z < camera.ZFar)
          {
+            var W = 1/v.W;
             v /= v.W;
+            v.W = W;
          }
          vertices[i] = v;
       });
       return vertices;
    }
-
 
    public static Vector4 ApplyTransformations(Vector4 vector, Camera camera, Matrix4x4 finalTransform)
    {

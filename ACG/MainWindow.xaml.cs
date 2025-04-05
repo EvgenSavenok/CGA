@@ -86,13 +86,7 @@ public partial class MainWindow : Window
             SourceOfLight = new(0, 0, 3 ),
             Intensity = 1f,
             Color = Colors.White
-        },
-        // new CustomLight()
-        // {
-        //     SourceOfLight = new(0, 0, 3 ),
-        //     Intensity = 1f,
-        //     Color = Colors.White
-        // },
+        }
     };
     
     public string SelectedMaterialFile
